@@ -1,0 +1,282 @@
+---
+title: "Living by yourself in England's North West"
+author: "Antje"
+date: "5 Oktober 2018"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+<h1> Introduction </h1>
+<b>
+This document shows the outset of analysing the relationship living conditions in the Tees Valley area in the North West of England. It was here that the famous James Cook once set off to his journeys to Australia, where more than hundertthousand people were shipped to later. The area is a formerly heavy-industry place which is now economically rather disadvantaged compared to other parts of the UK, seeking new ways. This inevitably falls back on the population. </p>
+Here, however, I focus on two things. With an interest in questions of potential loneliness so preeminant among older English people especially, the first section looks at how people in the retirement age are settled. </p>
+The second part looks at how it is to be single in Tees Valley, focusing on where there are sex imbalances potentially relevant for dating success. 
+This R Markdown document shows the process. 
+
+The dataset stems from the the British national authorities and can be found in its original (quite chaotic) state under: 
+https://data.gov.uk/dataset/cf68804a-fc3b-4036-bd93-1f8b05ed5240/age-by-sex-and-living-arrangements
+
+The Tees Valley consists of the five local authority units (or districts) Darlington, Hartlepool, Middlesbrough, Redcar and Cleveland, and Stockton-on-Tees.
+
+<h2> Importing the data </h2>
+
+```{r cars}
+
+library(sf)
+library(readr)
+library(ggplot2)
+library(maptools)
+library(dplyr)
+library(data.table)
+library(tidyverse)
+library(viridis)
+
+
+#The data was not useful in its original state, as the .csv document was not accordingly formatted. Hence, the relevant FIVE (regional) data sets had to be extracted beforehand manually. 
+PopTeesH <- read_csv("raw_data/TeesH.csv")
+PopTeesS <- read_csv("raw_data/TeesS.csv")
+PopTeesM <- read_csv("raw_data/TeesM.csv")
+PopTeesR <- read_csv("raw_data/TeesR.csv")
+PopTeesD <- read_csv("raw_data/TeesD.csv")
+
+#In preparation to merge the five data sets to one whole we need to make some arrangements, such as relabeling the Variable Names. Each variable receives now a regional designation.
+names(PopTeesH) <- paste(names(PopTeesH), sep="_", "H")
+names(PopTeesS) <- paste(names(PopTeesS), sep="_", "S")
+names(PopTeesM) <- paste(names(PopTeesM), sep="_", "M")
+names(PopTeesR) <- paste(names(PopTeesR), sep="_", "R")
+names(PopTeesD) <- paste(names(PopTeesD), sep="_", "D")
+
+#Here, we create one common column name to all five data sets, in order to be able to merge them in the next step.
+colnames(PopTeesD)[1] <- "Age_Group"
+colnames(PopTeesH)[1] <- "Age_Group"
+colnames(PopTeesM)[1] <- "Age_Group"
+colnames(PopTeesR)[1] <- "Age_Group"
+colnames(PopTeesS)[1] <- "Age_Group"
+
+#Merging the five data sets
+PopTees2 <- merge(PopTeesD, PopTeesH, by="Age_Group")
+PopTees2 <- merge(PopTees2, PopTeesM, by="Age_Group")
+PopTees2 <- merge(PopTees2, PopTeesR, by="Age_Group")
+PopTees2 <- merge(PopTees2, PopTeesS, by="Age_Group")
+
+
+#Tidying up the data set
+PopTees3 <- PopTees2[-1, ] 
+View(PopTees3)
+
+
+```
+
+Here the data set still presents itself a bit confuse. But let's now outline that what is of interest - the older population - people from 65 onwards. For this, as this data set is extremely messy I decided to export the file, do some summary calculation for the age group >65 years, and then reimport the file back.  
+
+```{r}
+library(xlsx)
+write.xlsx(PopTees3, file = "PopTees3.xlsx", col.names = TRUE, row.names = FALSE)
+PT4 <- read.xlsx("PopTees4.xlsx", sheetName = 1)
+
+```
+
+With the modified data set I can now calculate five new rows (one for each region) for the share of people from 65+, who do not live as a couple. The share is calculated for each of the five districts.  
+```{r}
+
+#Selecting Columns and calculating percentage of how many people live in couples, and how many do not  
+colnames(PT4)
+PT5 <- mutate(PT4,
+              Living_Alone_D=round(`ALL.PEOPLE...Not.living.in.a.couple_D`/`ALL.PEOPLE...Total.D_D`*100, digits=1))
+PT5 <- mutate(PT5,
+              Living_Alone_H=round(`ALL.PEOPLE...Not.living.in.a.couple_H`/`ALL.PEOPLE...Total.H_H`*100, digits=1))
+PT5 <- mutate(PT5,
+              Living_Alone_M=round(`ALL.PEOPLE...Not.living.in.a.couple_M`/`ALL.PEOPLE...Total.M_M`*100, digits=1))
+PT5 <- mutate(PT5,
+              Living_Alone_R=round(`ALL.PEOPLE...Not.living.in.a.couple_R`/`ALL.PEOPLE...Total.R_R`*100, digits=1))
+PT5 <- mutate(PT5,
+              Living_Alone_S=round(`ALL.PEOPLE...Not.living.in.a.couple_S`/`ALL.PEOPLE...Total.S_S`*100, digits=1))
+
+#For a better calculation, I flip the data table - so rows become columns, and vice versa. For this, I have to first select the columns which interest me most - the regional share of people living not in a couple for each area.
+#This section does not work properly at the moment, so I need to hide it. It works mostly, but then it suddenly stops and creates a list during the flipping instead of a data table. 
+
+PT6 <- PT5[, c(1, 47:51)]
+#as.data.frame("PT6")
+#data("PT6")
+#PT7 <- transpose(PT6)
+#PT8 <- PT7
+
+# get row and colnames in order
+#colnames(PT8) <- rownames(PT6)
+#rownames(PT8) <- colnames(PT6)
+#colnames(PT8) = PT8[1, ]
+#PT8=PT8[-1,]
+#Now I create for the bar plot an additional column containing the labelling of the regions.
+#PT8$Location <- c("Darlington", "Hartlepool", "Middlesbrough", "Redcar and Cleveland", "Stockton-on-Tees")
+
+#As this currently does not work properly with me, pull the data frame from here for the bar plot:
+write.xlsx(PT6, file = "PT6.xlsx", col.names = TRUE, row.names = FALSE)
+PT7R <- read.xlsx("PT7_Replace.xlsx", sheetName = 1)
+PT7R$Location <- c("Darlington", "Hartlepool", "Middlesbrough", "Redcar and Cleveland", "Stockton-on-Tees")
+colnames(PT7R)
+
+```
+
+
+
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+library(ggplot2)
+ggplot(data=PT7R,
+       aes(x=Location, y=`All.65.`, fill=`ALL.PEOPLE`), size=2)+
+  theme(legend.position="none")+
+  ggtitle(label="People older than 65 not living in couples / Teesside Valley area")+
+  xlab(label="Tees Valley area")+
+  ylab(label="People above 65")+
+  geom_bar(stat="identity", position="dodge", colour="black", size=1)
+```
+
+Now, this is interesting, as it becomes clear that Middlesbrough has the highest number of people beyond 65, who do not live as a couple together. However, the difference to the other regions is only slightly higher. Maybe differentiating age groups differently yields other results.
+
+
+<h1> 2nd Example - Where are the Singles?! </h1>
+
+For the second part, let me provide the code which goes back to my example given in module 4. 
+
+<b> Importing the Data </b>
+
+```{r}
+
+library(sf)
+library(readr)
+library(ggplot2)
+library(maptools)
+library(dplyr)
+library(data.table)
+library(tidyverse)
+library(viridis)
+
+#Import of Geodata from UK disctricts - all
+Eng_location <- "Test4_shapefile_data/Local_Authority_Districts_May_2018_UK_BSC.shp"
+Eng <- st_read(Eng_location)
+
+#Map display of all(most) UK districts
+gg2 <- ggplot(Eng) +
+  geom_sf()
+print(gg2)
+colnames(Eng)
+
+#Selection of the five districts forming the "Tees Valley" region
+EngTees <- filter(Eng,
+             lad18cd %in% c("E06000002", "E06000001", "E06000003", "E06000004", "E06000005"))
+
+#Map display of the Tees Valley
+ggTees <- ggplot(EngTees) +
+  geom_sf()
+print(ggTees)
+
+#We use the data set from before, here I start with this step again.
+PopTees4 <- read.xlsx("PopTees4.xlsx", sheetName = 1)
+
+```
+
+The data set gets transformed. When flipped, as above, this time a technical problem occured which I cannot address within this time. Try yourself. I am happy to hear back. This is the code.
+
+```{r}
+#Reducing Rows
+PopTees5 <- PopTees4[-c(1:11), ]
+colnames(PopTees5)[1] <- "Age_Group"
+colnames(PopTees5)
+
+#Selecting Columns and calculating percentage how many more or less women exist in the age groups for each place 
+PopTees6 <- select(PopTees5, -starts_with("ALL")) 
+PopTees6 <- PopTees6[, c(1,4,7,10,13,16,19,22,25,28,31)]
+colnames(PopTees6)
+colnames(PopTees6)[2] <- "Male_Single_D"
+colnames(PopTees6)[3] <- "Female_Single_D"
+colnames(PopTees6)[4] <- "Male_Single_H"
+colnames(PopTees6)[5] <- "Female_Single_H"
+colnames(PopTees6)[6] <- "Male_Single_M"
+colnames(PopTees6)[7] <- "Female_Single_M"
+colnames(PopTees6)[8] <- "Male_Single_R"
+colnames(PopTees6)[9] <- "Female_Single_R"
+colnames(PopTees6)[10] <- "Male_Single_S"
+colnames(PopTees6)[11] <- "Female_Single_S"
+PopTees6 <- mutate(PopTees6,
+        Darlington=round(Female_Single_D/Male_Single_D*100-100, digits=1))
+PopTees6 <- mutate(PopTees6,
+         Hartlepool=round(Female_Single_H/Male_Single_H*100-100, digits=1)) 
+PopTees6 <- mutate(PopTees6,
+         Middlesbrough=round(Female_Single_M/Male_Single_M*100-100, digits=1))
+PopTees6 <- mutate(PopTees6,
+         Redcar_Cleveland=round(Female_Single_R/Male_Single_R*100-100, digits=1))   
+PopTees6 <- mutate(PopTees6,
+         Stockton=round(Female_Single_S/Male_Single_S*100-100, digits=1)) 
+
+PopTees7 <- PopTees6[, c(1, 12:16)]
+
+
+
+# get data
+as.data.frame("PopTees7")
+data("PopTees7")
+
+# transpose
+PopTees_T <- transpose(PopTees7)
+PopT <- PopTees_T
+
+# get row and colnames in order
+colnames(PopT) <- rownames(PopTees7)
+rownames(PopT) <- colnames(PopTees7)
+colnames(PopT) = PopT[1, ]
+PopT=PopT[-1,]
+PopT[] <- lapply(PopT, function(x) as.numeric(as.character(x)))
+PopT$lad18nm <- c("Darlington", "Hartlepool", "Middlesbrough", "Redcar and Cleveland", "Stockton-on-Tees")
+PopT <- PopT[, -6]
+
+```
+
+Now the two data sets get merged:
+
+```{r}
+#Merge the datasets! Geo and data. 
+TeesSingle <- left_join(EngTees, PopT, by="lad18nm")
+```
+
+Finally, five maps can be drawn, each for a different age group:
+
+```{r}
+ggplot(TeesSingle) +
+  geom_sf(aes(fill=`20-24`)) +
+  scale_fill_distiller(palette = "Blues", direction=1, name="% of Women less than men")+
+  labs(title="Share of Single-Living Women compared to Men in the Tees Valley Region: Age Group 20-24", caption="Source: https://data.gov.uk")
+  
+ggplot(TeesSingle) +
+  geom_sf(aes(fill=`25-39`)) +
+  scale_fill_distiller(palette = "Oranges", direction=1, name="% of Women more than men")+
+  labs(title="Share of Single-Living Women compared to Men in the Tees Valley Region: Age Group 25-39", caption="Source: https://data.gov.uk")
+
+ggplot(TeesSingle) +
+  geom_sf(aes(fill=`40-49`)) +
+  scale_fill_distiller(palette = "Oranges", direction=1, name="% of Women more than men")+
+  labs(title="Share of Single-Living Women compared to Men in the Tees Valley Region: Age Group 40-49", caption="Source: https://data.gov.uk")
+
+ggplot(TeesSingle) +
+  geom_sf(aes(fill=`50-64`)) +
+  scale_fill_distiller(palette = "Oranges", direction=1, name="% of Women more than men")+
+  labs(title="Share of Single-Living Women compared to Men in the Tees Valley Region: Age Group 50-64", caption="Source: https://data.gov.uk")
+
+ggplot(TeesSingle) +
+  geom_sf(aes(fill=`65+`)) +
+  scale_fill_distiller(palette = "Reds", direction=1, name="% of Women more than men")+
+  labs(title="Share of Single-Living Women compared to Men in the Tees Valley Region: Age Group 65+", caption="Source: https://data.gov.uk")
+
+
+```
+
