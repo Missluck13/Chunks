@@ -1,0 +1,69 @@
+---
+title: "Living by yourself in England's North West"
+author: "Antje"
+date: "5 Oktober 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+<h1> Introduction </h1>
+<b>
+This document shows the outset of analysing the relationship living conditions in the Tees Valley area in the North West of England. This area consists of a formerly heavy-industry place which is now economically rather disadvantaged compared to other parts of the UK, seeking new ways. This inevitably falls back on the population. </p>
+Here, however, I focus on two things. With an interest in questions of potential loneliness so preeminant among older English people especially, the first section looks at how people in the retirement age are settled. </p>
+The second part looks at how it is to be single in Tees Valley, focusing on where there are sex imbalances potentially relevant for dating success. 
+This R Markdown document shows the process. 
+
+The dataset stems from the the British national authorities and can be found in its original (quite chaotic) state under: 
+https://data.gov.uk/dataset/cf68804a-fc3b-4036-bd93-1f8b05ed5240/age-by-sex-and-living-arrangements
+
+<h2> Importing the data </h2>
+
+```{r }
+library(sf)
+library(readr)
+library(ggplot2)
+library(maptools)
+library(dplyr)
+library(data.table)
+library(tidyverse)
+library(viridis)
+
+
+#The data was not useful in its original state, as the .csv document was not accordingly formatted. Hence, the relevant FIVE (regional) data sets had to be extracted beforehand manually. 
+PopTeesH <- read_csv("raw_data/TeesH.csv")
+PopTeesS <- read_csv("raw_data/TeesS.csv")
+PopTeesM <- read_csv("raw_data/TeesM.csv")
+PopTeesR <- read_csv("raw_data/TeesR.csv")
+PopTeesD <- read_csv("raw_data/TeesD.csv")
+
+#In preparation to merge the five data sets to one whole we need to make some arrangements, such as relabeling the Variable Names
+names(PopTeesH) <- paste(names(PopTeesH), sep="_", "H")
+names(PopTeesS) <- paste(names(PopTeesS), sep="_", "S")
+names(PopTeesM) <- paste(names(PopTeesM), sep="_", "M")
+names(PopTeesR) <- paste(names(PopTeesR), sep="_", "R")
+names(PopTeesD) <- paste(names(PopTeesD), sep="_", "D")
+
+#Here, we create one common column name to all five data sets, in order to be able to merge them in the next step.
+colnames(PopTeesD)[1] <- "Age_Group"
+colnames(PopTeesH)[1] <- "Age_Group"
+colnames(PopTeesM)[1] <- "Age_Group"
+colnames(PopTeesR)[1] <- "Age_Group"
+colnames(PopTeesS)[1] <- "Age_Group"
+
+#Merging the five data sets
+PopTees2 <- merge(PopTeesD, PopTeesH, by="Age_Group")
+PopTees2 <- merge(PopTees2, PopTeesM, by="Age_Group")
+PopTees2 <- merge(PopTees2, PopTeesR, by="Age_Group")
+PopTees2 <- merge(PopTees2, PopTeesS, by="Age_Group")
+
+datatable(PopTees2, extensions = 'Buttons', options = list(
+    dom = 'Bfrtip',
+    buttons = c('copy', 'csv', 'excel', 'pdf', 'print')
+  )
+
+```
