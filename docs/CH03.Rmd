@@ -1,0 +1,146 @@
+---
+title: "CH03"
+author: "Antje"
+date: "6 Oktober 2018"
+output: 
+    html_document: 
+    theme: united
+    highlight: espresso
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(prettydoc)
+```
+
+## Introduction: "Living by yourself in England's North West"
+
+<b>
+This document shows the outset of analysing the relationship living conditions in the Tees Valley area in the North West of England. It was here that the famous James Cook once set off to his journeys to Australia, where more than hundertthousand people were shipped to later. The area is a formerly heavy-industry place which is now economically rather disadvantaged compared to other parts of the UK, seeking new ways. This inevitably falls back on the population. </p>
+Here, however, I focus on two things. With an interest in questions of potential loneliness so preeminant among older English people especially, the first section looks at how people in the retirement age are settled. </p>
+The second part looks at how it is to be single in Tees Valley, focusing on where there are sex imbalances potentially relevant for dating success. 
+This R Markdown document shows the process. 
+
+The dataset stems from the the British national authorities and can be found in its original (quite chaotic) state under: 
+https://data.gov.uk/dataset/cf68804a-fc3b-4036-bd93-1f8b05ed5240/age-by-sex-and-living-arrangements
+
+The Tees Valley consists of the five local authority units (or districts) Darlington, Hartlepool, Middlesbrough, Redcar and Cleveland, and Stockton-on-Tees.
+
+<h2> Importing the data </h2>
+
+```{r libraries, echo=FALSE, warning=FALSE, include=FALSE}
+
+library(sf)
+library(DT)
+library(readr)
+library(ggplot2)
+library(maptools)
+library(dplyr)
+library(data.table)
+library(tidyverse)
+library(viridis)
+library(knitr)
+library(kableExtra)
+library(xlsx)
+
+```
+
+
+Looking at the data from the Tees Valley regions, this needs some manual handling before we can work with it analytically. 
+
+
+```{r data input, warning=FALSE, message=FALSE}
+
+#The data was not useful in its original state, as the .csv document was extremely messy and not accordingly formatted. A challenge. Hence, the relevant FIVE (regional) data sets were best to be extracted beforehand manually. 
+PopTeesH <- read_csv("raw_data/TeesH.csv")
+PopTeesS <- read_csv("raw_data/TeesS.csv")
+PopTeesM <- read_csv("raw_data/TeesM.csv")
+PopTeesR <- read_csv("raw_data/TeesR.csv")
+PopTeesD <- read_csv("raw_data/TeesD.csv")
+
+#In preparation to merge the five data sets to one whole we need to make some arrangements, such as relabeling the Variable Names. Each variable receives now a regional designation.
+names(PopTeesH) <- paste(names(PopTeesH), sep="_", "H")
+names(PopTeesS) <- paste(names(PopTeesS), sep="_", "S")
+names(PopTeesM) <- paste(names(PopTeesM), sep="_", "M")
+names(PopTeesR) <- paste(names(PopTeesR), sep="_", "R")
+names(PopTeesD) <- paste(names(PopTeesD), sep="_", "D")
+
+#Here, we create one common column name to all five data sets, in order to be able to merge them in the next step.
+colnames(PopTeesD)[1] <- "Age_Group"
+colnames(PopTeesH)[1] <- "Age_Group"
+colnames(PopTeesM)[1] <- "Age_Group"
+colnames(PopTeesR)[1] <- "Age_Group"
+colnames(PopTeesS)[1] <- "Age_Group"
+
+#Merging the five data sets
+PopTees2 <- merge(PopTeesD, PopTeesH, by="Age_Group")
+PopTees2 <- merge(PopTees2, PopTeesM, by="Age_Group")
+PopTees2 <- merge(PopTees2, PopTeesR, by="Age_Group")
+PopTees2 <- merge(PopTees2, PopTeesS, by="Age_Group")
+
+#Tidying up the data set and removing some now unncessary files from R Data Section
+PopTees3 <- PopTees2[-1, ] 
+remove(PopTeesD)
+remove(PopTeesH)
+remove(PopTeesM)
+remove(PopTeesS)
+remove(PopTeesR)
+
+```
+
+
+These transformations result in the following data set (a brief sample):
+
+
+```{r Table display, echo=FALSE}
+
+dt <- PopTees3[1:16, 1:4]
+colnames(dt)[2] <- "Total_Darlington"
+colnames(dt)[3] <- "Total_InCouple_Darlington"
+colnames(dt)[4] <- "Total_NotCouple_Darlington"
+kable(dt)
+
+```
+
+
+##  65+
+
+Here the data set still presents itself a bit confuse. But let's now outline that what is of interest - the older population - people from 65 onwards. For this, as this data set is extremely messy I decided to export the file, do a summary calculation for the age group >65 years, and then reimport the file back.  
+
+
+
+```{r}
+
+write.xlsx(PopTees3, file = "PopTees3.xlsx", col.names = TRUE, row.names = FALSE)
+PT4 <- read.xlsx("PopTees4.xlsx", sheetName = 1)
+
+```
+
+
+With the modified data set I can now calculate five new rows (one for each region) for the share of people from 65+, who do not live as a couple. The share is calculated for each of the five districts and visible below in the table.  
+
+```{r mutate 65+ percentage, message=F, warning=F}
+
+#Selecting Columns and calculating percentage of how many people live in couples, and how many do not  
+PT5 <- mutate(PT4,
+              Living_Alone_D=round(`ALL.PEOPLE...Not.living.in.a.couple_D`/`ALL.PEOPLE...Total.D_D`*100, digits=1))
+PT5 <- mutate(PT5,
+              Living_Alone_H=round(`ALL.PEOPLE...Not.living.in.a.couple_H`/`ALL.PEOPLE...Total.H_H`*100, digits=1))
+PT5 <- mutate(PT5,
+              Living_Alone_M=round(`ALL.PEOPLE...Not.living.in.a.couple_M`/`ALL.PEOPLE...Total.M_M`*100, digits=1))
+PT5 <- mutate(PT5,
+              Living_Alone_R=round(`ALL.PEOPLE...Not.living.in.a.couple_R`/`ALL.PEOPLE...Total.R_R`*100, digits=1))
+PT5 <- mutate(PT5,
+              Living_Alone_S=round(`ALL.PEOPLE...Not.living.in.a.couple_S`/`ALL.PEOPLE...Total.S_S`*100, digits=1))
+
+
+```
+
+
+```{r table display selection, echo=F}
+
+dt2 <- PT5[1:17, 47:51]
+dt2$Age_Group_=c("16 to 19","20 to 24", "25 to 34", "35 to 39", "40 to 44", "45 to 49","50 to 54", "55 to 59",  "60 to 64", "65 to 69", "70 to 74", "75 to 79", "80 to 84", "85 to 89", "90 and over", "ALL PEOPLE", "65+")	
+datatable(dt2)
+```
+
